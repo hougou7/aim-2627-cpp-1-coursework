@@ -1,0 +1,10 @@
+name: C++ public checks
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  public:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build
+      - run: cmake --build build --parallel 4
+      - run: ctest --test-dir build --output-on-failure
