@@ -14,5 +14,6 @@
 #include <utility>
 #include <vector>
 namespace aim::q8 {
+struct Telemetry { int id; int hp; };
 struct Summary { int valid; int duplicate; int invalid; long long total_hp; std::vector<int> ids; };
 }

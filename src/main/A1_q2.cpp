@@ -15,10 +15,10 @@
 
 // Assessment 01 Q2; see 题面.pdf.
 namespace aim::q2 {
-struct Damage { int id; int value; };
+struct LabelEdit { std::string from; std::string to; };
 
 // BEGIN IMPLEMENTATION
-std::vector<Damage> clean(const std::vector<std::string>& lines) { throw std::runtime_error("TODO"); }
+std::string edit_labels(std::string labels, const std::vector<LabelEdit>& edits) { throw std::runtime_error("TODO"); }
 // END IMPLEMENTATION
 }
 
@@ -29,8 +29,8 @@ std::vector<Damage> clean(const std::vector<std::string>& lines) { throw std::ru
 using namespace aim::q2;
 int main() {
     try {
-        { std::vector<aim::q2::Damage> r=clean({"2 5","bad","2 9","1 3"}); CHECK(r.size()==2 && r[0].id==2 && r[0].value==5 && r[1].id==1); }
-        { CHECK(clean({}).empty()); }
+        { CHECK(edit_labels("cam,imu,radar",{{"imu","gyro"},{"cam",""},{"","lidar"}})=="gyro,radar,lidar"); }
+        { CHECK(edit_labels("cam,cam2,cam",{{"cam","camera"},{"cam",""}})=="camera,cam2"); }
         std::cout << "PUBLIC 2/2\n";
     } catch(const std::exception& e) {
         std::cerr << e.what() << "\n";

@@ -15,13 +15,13 @@ Read background and task, then interfaces and clauses, and verify examples in or
 | ID | Task | Topics | Raw weight |
 | --- | --- | --- | --- |
 | Q1 | Normalize fixed-point telemetry | Integer arithmetic, branching, string assembly | 8 |
-| Q2 | Clean and deduplicate damage logs | Stream parsing, iteration, Boolean arrays, plain structs | 10 |
+| Q2 | Maintain device labels | String search, replacement, append/delete, complete-field boundaries | 10 |
 | Q3 | Detect anomalous windows | Sliding windows, indexing, time complexity | 10 |
 | Q4 | Execute commands transactionally | Parsing, branching, transactional updates, counting | 12 |
 | Q5 | Compute grid neighborhood risk | Matrices, nested loops, boundaries, exceptions | 12 |
 | Q6 | Select a priority target | Filtering, lexicographic priorities, integer width | 14 |
 | Q7 | Simulate heat and ammunition | Loop simulation, update order, resource accounting | 16 |
-| Q8 | Build a telemetry processing pipeline | Pipelines, sorting, deduplication, count invariants | 18 |
+| Q8 | Build a telemetry processing pipeline | Range validation, deduplication, classification, id ordering, count invariants | 18 |
 | B1 | Challenge: parse a signed decimal integer | Characters, output references, overflow prevention (optional) | +10 |
 | B2 | Challenge: stable in-place compaction | Array pointers, in-place processing, stability (optional) | +10 |
 
@@ -103,66 +103,70 @@ Two thirds becomes 66 by truncation, and battery exactly 20 belongs to WARNING. 
 Check negative and excessive hp, zero maximum, and battery 19/20/59/60. Explain the integer width required by the intermediate multiplication.
 END HIDDEN BOUNDARY HINTS -->
 
-## Q2 Clean and deduplicate damage logs · 10 raw points
+## Q2 Maintain device labels · 10 raw points
 
 ### Background
 
-During a test the operator reports one hit, while the replay counts three. Reconnection has replayed buffered events. The log also contains comments, empty lines, and incomplete records.
+The terminal lists camera, inertial, and radar modules as cam,imu,radar. Hardware changes require renaming labels, removing retired modules, and appending new ones while keeping the existing status display.
 
-An earlier cleaner marked an event as seen before validating it. When a malformed event 12 arrived before the real event 12, the real damage vanished. Your cleaner must validate the whole line before deduplicating it. Identifiers refer to events, and each valid event contributes at most once.
+An early script changes cam2 when asked to rename cam, and leaves a trailing comma after deleting the last device. Another caches positions before replacing a short name with a longer one, so later edits hit the wrong characters. Maintain the current text in order, match complete labels, and handle empty lists and duplicate labels predictably. The caller supplies edit records directly; no command parser is needed.
 
 ### Your task
 
-Implement `clean` to convert raw lines into `Damage` records. The provided struct contains only id and value. Preserve the arrival order of first valid events rather than sorting identifiers.
+Implement `edit_labels` to apply plain `LabelEdit` records to comma-separated labels in order and return the final string. from and to identify old and new labels; empty values select append or delete. Preserve the caller's original text and edit records.
 
-**Topics:** Stream parsing, iteration, Boolean arrays, plain structs. File: `src/main/A1_q2.cpp`.
+**Topics:** String search, replacement, append/delete, complete-field boundaries. File: `src/main/A1_q2.cpp`.
 
 ### Fixed interface and data
 
 ```cpp
-struct Damage { int id; int value; };
-std::vector<Damage> clean(const std::vector<std::string>& lines);
+struct LabelEdit { std::string from; std::string to; };
+std::string edit_labels(std::string labels, const std::vector<LabelEdit>& edits);
 ```
 
 Use the existing `aim::q2` namespace in the skeleton; do not nest it again. Fixed structs or base types shown above are already provided outside the implementation region.
 
 ### Contract
 
-1. There are at most 20000 lines. Each valid line has exactly two decimal int fields, id damage, separated by stream whitespace; surrounding whitespace is permitted.
+1. labels is empty or contains nonempty labels joined by single commas, initially at most 1000 characters. There are no leading, trailing, or repeated commas. Each case-sensitive label has 1..32 ASCII letters, digits, or underscores.
 
-2. id is in [0,9999], damage in [1,1000]. Use standard decimal integer stream extraction, including optional plus signs and leading zeros. Integer overflow makes a field invalid.
+2. edits has at most 200 records. Each from/to is empty or satisfies the same label rules. Inputs are guaranteed to satisfy this grammar; format-error reporting, numeric conversion, and stream parsing are unnecessary.
 
-3. Ignore empty lines, comments, missing fields, extra fields, and non-whitespace suffixes after numbers.
+3. Apply edits in order. Empty from with nonempty to appends to, inserting a comma only if the list is nonempty. Two empty values do nothing.
 
-4. Complete syntax and range validation first. An invalid line does not reserve an identifier.
+4. For nonempty from, find only the first complete label exactly equal to from in the current text. A partial substring is not a match. A missing label leaves text unchanged; even from equal to to processes only one occurrence once.
 
-5. Retain {id,damage} only for the first valid occurrence of each id. Later valid duplicates never replace it.
+5. If found with nonempty to, replace that label. Empty to deletes the label and the necessary adjacent comma. Deleting the only label yields an empty string. Results have no leading, trailing, or repeated commas.
 
-6. Do not modify lines. Empty or wholly invalid input returns an empty sequence; deduplication starts fresh on every call.
+6. Duplicates are allowed; appending and renaming do not deduplicate. Preserve other labels' relative order. Each edit uses the result of the previous edit rather than cached character positions.
+
+7. Empty edits returns the original text. Do not modify the caller's text or edits; calls are independent. You may use string operations such as find, substr, replace, erase, clear, and concatenation; no particular search algorithm is required.
 
 ### Examples and explanation
 
 ```cpp
-clean({"2 5", "bad", "2 9", "1 3"});  // {{2,5},{1,3}}
-clean({"1 -1", "1 4", "1 8"});        // {{1,4}}
-clean({"1 2 x", "# 2 3", ""});        // {}
+edit_labels("cam,imu,radar", {{"imu","gyro"},{"cam",""},{"","lidar"}});
+// "gyro,radar,lidar"
+edit_labels("cam,cam2,cam", {{"cam","camera"},{"cam",""}});
+// "camera,cam2"
+edit_labels("cam", {{"cam",""},{"","imu"}}); // "imu"
 ```
 
-The first event 2 keeps damage 5; bad is ignored and the duplicate cannot replace it. A negative damage value does not reserve id 1. Extracting two numbers alone does not establish that the entire line is valid.
+The first sequence produces cam,gyro,radar, then gyro,radar, then gyro,radar,lidar. The second renames only the first cam to camera, then removes the remaining complete cam without touching cam2 or camera. The third deletes the sole label before appending imu, with no leading comma.
 
 <!-- BEGIN HIDDEN BOUNDARY HINTS
 ### Boundary behavior reference
 
 | Input or situation | Required result | Reason |
 | --- | --- | --- |
-| `{"1 -1","1 4"}` | `{{1,4}}` | Invalid data reserves no id |
-| `{"1 4","1 8"}` | `{{1,4}}` | First valid record wins |
-| `{"1 2 x"}` | `{}` | Extra fields invalidate the line |
-| `{" +1 0002 "}` | `{{1,2}}` | Stream integer syntax |
+| `edit_labels("cam2,cam",{{"cam","imu"}})` | `"cam2,imu"` | Match complete labels only |
+| `edit_labels("a,b,a",{{"a","x"}})` | `"x,b,a"` | Edit only the first match |
+| `edit_labels("a,b",{{"b",""}})` | `"a"` | Delete the adjacent comma at the end |
+| `edit_labels("a",{{"a",""},{"","b"}})` | `"b"` | Append correctly after clearing |
 
 ### Self-check and notes
 
-Test duplicates, overflow, surrounding whitespace, and an invalid record immediately followed by a valid record of the same id. Explain why reading an id is too early to mark it seen.
+Cover deletion at every position, the only label, partial substrings, case, duplicates, missing labels, empty edits, and edits after a length-changing rename. Explain why position zero is a match and why later edits must search the updated text.
 END HIDDEN BOUNDARY HINTS -->
 
 ## Q3 Detect anomalous windows · 10 raw points
@@ -262,6 +266,21 @@ Use the existing `aim::q4` namespace in the skeleton; do not nest it again. Fixe
 5. Commit the value and increment accepted only after complete validation. Otherwise increment rejected and preserve value.
 
 6. Empty input returns {0,0,0}. accepted+rejected equals the number of lines, and calls are independent.
+
+### String-stream guidance
+
+`std::istringstream` treats an existing string as an input stream. Extraction works like `std::cin >>` without reading the keyboard. This example only demonstrates checking one integer and trailing content:
+
+```cpp
+std::istringstream input("12 extra");
+int number = 0;
+std::string extra;
+bool has_number = static_cast<bool>(input >> number);
+bool has_extra = static_cast<bool>(input >> extra);
+// has_number=true, number=12, has_extra=true
+```
+
+The first success only means that a number was extracted. The second succeeds because extra content remains. Whitespace alone does not produce another word. For `12x`, integer extraction can yield 12 while a later extraction reads x, so the suffix must be checked. A missing number or an integer outside the extraction type's range makes numeric extraction fail. Create a separate stream for each command and validate its operation, arguments, suffix, and range before updating the accumulator.
 
 ### Examples and explanation
 
@@ -477,64 +496,68 @@ END HIDDEN BOUNDARY HINTS -->
 
 ### Background
 
-The final replay runs, but its counts do not reconcile: one line was classified as both malformed and duplicate by separate modules. You now define a clear pipeline output that accounts for every input line and supplies a sorted robot-id list.
+The final replay runs, but its first-valid, duplicate, and invalid counts do not add up to the input size. Separate modules have classified the same record as both invalid and duplicate.
 
-Here identifiers represent robots within one summary, unlike event ids in Q2. Later valid packets never replace the first valid value. Every line belongs to exactly one category, invalid data cannot reserve an id, and no state may leak from an earlier replay.
+The communication module already supplies integer id and health fields as plain records. There is no text to parse, but an int can still contain an out-of-range identifier or an unacceptable health value. Assign each record to one category and produce an ordered id list. Later valid packets never replace the first accepted value; invalid records reserve no id, and no state may leak from an earlier batch.
 
 ### Your task
 
-Implement the ordinary function summarize, combining parsing, classification, deduplication, health normalization, and id ordering. Summary contains mutually exclusive valid/duplicate/invalid counts, total normalized health, and sorted ids.
+Implement summarize to combine range validation, classification, deduplication, health normalization, and id ordering for structured telemetry. Telemetry and Summary are supplied plain structs. Summary contains mutually exclusive valid/duplicate/invalid counts, total normalized health from first valid records, and ascending ids.
 
-**Topics:** Pipelines, sorting, deduplication, count invariants. File: `src/main/A1_q8.cpp`.
+**Topics:** Range validation, deduplication, classification, id ordering, count invariants. File: `src/main/A1_q8.cpp`.
 
 ### Fixed interface and data
 
 ```cpp
+struct Telemetry { int id; int hp; };
 struct Summary { int valid; int duplicate; int invalid; long long total_hp; std::vector<int> ids; };
-Summary summarize(const std::vector<std::string>& lines);
+Summary summarize(const std::vector<Telemetry>& frames);
 ```
 
 Use the existing `aim::q8` namespace in the skeleton; do not nest it again. Fixed structs or base types shown above are already provided outside the implementation region.
 
 ### Contract
 
-1. At most 20000 lines each contain exactly two decimal int fields id hp. Surrounding stream whitespace is allowed; extra fields and non-whitespace suffixes are forbidden.
+1. frames contains at most 20000 Telemetry records, each already holding int fields id and hp. Either field may be any int. Read the fields directly; text parsing is unnecessary.
 
-2. id is in [0,9999] and hp in [-1000,1000], parsed with standard stream extraction. Syntax errors, integer overflow, and range violations count as invalid and reserve no id.
+2. A record is legal only if id is in [0,9999] and hp in [-1000,1000]. A range violation counts as invalid and reserves no id. Validate id before indexing a marker table.
 
 3. Only after full validation check duplicates. A previously accepted id increments duplicate and changes no other output.
 
 4. A first valid record increments valid, clamps hp to [0,100] for the long long total_hp, and retains its id.
 
-5. Finally sort ids ascending, rather than preserving Q2 arrival order. Each id appears once.
+5. Return ids in ascending numeric order, once per id, rather than arrival order. Either sorting or scanning a marker table in id order is allowed.
 
-6. Empty input gives zero counts, zero total, and empty ids. valid+duplicate+invalid equals line count, and valid equals ids.size().
+6. Each record belongs to exactly one of first-valid, legal-duplicate, or invalid. Always satisfy valid+duplicate+invalid=frames.size() and valid=ids.size(). Empty input gives zero counts, zero total, and empty ids.
 
-7. Leave input unchanged and do not depend on Q2 or any other task source. This task compiles and scores independently.
+7. Leave frames unchanged, start fresh on every call, and do not depend on another task's implementation or source. This task compiles and scores independently.
 
 ### Examples and explanation
 
 ```cpp
-Summary s = summarize({"2 200","1 -5","2 10","bad"});
+Summary s = summarize({{2,200},{1,-5},{2,10},{-1,30}});
 // s.valid=2, s.duplicate=1, s.invalid=1
 // s.total_hp=100, s.ids={1,2}
+Summary t = summarize({{1,-1001},{1,30},{1,1001}});
+// t.valid=1, t.duplicate=0, t.invalid=2
+// t.total_hp=30, t.ids={1}
 ```
 
-The first hp 200 is legal input and contributes 100 after clamping. hp -5 is also legal and contributes zero. The later id 2 is duplicate and cannot replace 100. bad is invalid. The four lines partition into 2+1+1, and ids become 1,2.
+In the first batch, hp 200 is legal and contributes 100 after clamping; hp -5 contributes zero. The later {2,10} is duplicate, and {-1,30} has an invalid id. In the second batch, -1001 reserves no id, 30 is the first valid value, and 1001 is invalid even though its id is already seen.
 
 <!-- BEGIN HIDDEN BOUNDARY HINTS
 ### Boundary behavior reference
 
 | Input or situation | Required result | Reason |
 | --- | --- | --- |
-| `{"1 -1001","1 30"}` | `valid=1, invalid=1, total_hp=30` | Invalid first line reserves no id |
-| `{"1 20","1 -1001"}` | `valid=1, duplicate=0, invalid=1` | Validate before deduplicating |
-| `{"2 5","1 9"}` | `ids={1,2}, total_hp=14` | Sort ids, not arrival order |
+| `{{1,-1001},{1,30}}` | `valid=1, invalid=1, total_hp=30` | Invalid record reserves no id |
+| `{{1,20},{1,-1001}}` | `valid=1, duplicate=0, invalid=1` | Validate before deduplicating |
+| `{{2,5},{1,9}}` | `ids={1,2}, total_hp=14` | Sort ids, not arrival order |
 | `{}` | `valid=duplicate=invalid=total_hp=0; ids={}` | Empty batch starts fresh |
 
 ### Self-check and notes
 
-Check both counting identities, invalid records followed by corrections, duplicate negative health, empty batches, and consecutive calls.
+Check both count identities, invalid ids, range endpoints, legal negative health, corrections after invalid records, invalid data for seen ids, unordered ids, empty batches, and consecutive calls. Distinguish input-range validation from clamping for the total.
 END HIDDEN BOUNDARY HINTS -->
 
 ## B1 Challenge: parse a signed decimal integer · +10 points

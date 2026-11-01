@@ -14,5 +14,5 @@
 #include <utility>
 #include <vector>
 namespace aim::q2 {
-struct Damage { int id; int value; };
+struct LabelEdit { std::string from; std::string to; };
 }
