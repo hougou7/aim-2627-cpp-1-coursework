@@ -158,6 +158,13 @@ int main(int argc,char** argv) {{
             'bonus':round(bonus,2),'bonus_max':20,'ai_transparency':None,'quality_and_readme':None,
             'manual_max':40,'total':None,'note':'人工分未填写，总分不计算。可见测试分数仅供自测，正式评分使用私有 grader。'}
 
+def grading_failed(reports, require_core=False):
+    """CI may require core tasks while still reporting optional bonus failures."""
+    return any(r.get('status')=='ERROR' or any(
+        t['status']!='PASS' and (not require_core or not t['bonus'])
+        for t in r.get('tasks',[])) for r in reports)
+
+
 def main():
     parser=argparse.ArgumentParser(description='AIM C++17 独立批改器')
     parser.add_argument('repos',nargs='*',help='学生模板根目录，或 https://github.com/...git')
@@ -165,6 +172,7 @@ def main():
     parser.add_argument('--output',type=Path,default=Path('scores'))
     parser.add_argument('--compiler',default=os.environ.get('CXX') or shutil.which('g++') or shutil.which('clang++'))
     parser.add_argument('--only',nargs='+',choices=[f'q{i}' for i in range(1,9)]+['b1','b2'])
+    parser.add_argument('--require-core',action='store_true',help='仍评测挑战题，但仅必做题失败影响退出码，供 CI 使用')
     args=parser.parse_args()
     here=Path(__file__).resolve().parent
     manifest=json.loads((here/'cases.json').read_text())
@@ -205,6 +213,6 @@ def main():
     with (args.output/'manual_scores.csv').open('w',newline='') as f:
         writer=csv.writer(f);writer.writerow(['student','automatic_60','bonus_20','ai_transparency_20','quality_readme_20','total_120'])
         for r in reports: writer.writerow([r['student'],r['automatic'],r['bonus'],'','',''])
-    return 1 if any(r.get('status')=='ERROR' or any(t['status']!='PASS' for t in r.get('tasks',[])) for r in reports) else 0
+    return int(grading_failed(reports,args.require_core))
 
 if __name__=='__main__': sys.exit(main())

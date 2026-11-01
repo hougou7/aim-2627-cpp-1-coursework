@@ -693,6 +693,16 @@ Edit only implementation regions and the personal notes at the end of README; al
 
 Document each task's approach, boundaries, and complexity, at least three additional boundary tests, and one actual defect, diagnosis, and fix. AI assistance is allowed: disclose its scope, how you checked its output, and reviewable process records. If unused, explicitly declare this and supply development records. You must be able to explain your interfaces and failure paths.
 
+### GitHub CI and submission receipt
+
+Develop and push on main, or merge a pull request into main. CI runs on main pushes, pull requests targeting main, and manual dispatches. Following the Python coursework, it checks cumulative changed paths, runs automatic public grading, and writes a soft commit-granularity check to the Actions Summary.
+
+Student repositories may change only existing task implementations under src/main, README.md, local_tests/, and .agent-sessions/bundles/. Preserve workflows, tools, public tests, fixed types, and statements. The instructor template repository skips the student path check. The initial commit is the history baseline; 15 later commits is a reference for review only and neither blocks CI nor automatically determines manual credit.
+
+The Summary shows per-task passed groups, public automatic credit /60, and bonus credit /20, with JSON, Markdown, and CSV reports in an Artifact. All Q1–Q8 must pass. B1/B2 are optional and unfinished challenges do not block CI. Summaries and available diagnostics are retained even when grading fails.
+
+Public self-check scores are not final grades. Private instructor tests never enter student repositories or CI; manual credit /40 and the final total remain pending. Once the final main commit passes CI, submit [AIM 2627 CPP Coursework 1 回执](https://docs.qq.com/form/page/DWnRNY1RTZ2pvdmNK) once per student. Supply personal information, repository URL, and final main commit as requested by the actual form, and retain the corresponding Actions run URL. A pull-request check does not replace the final main submission.
+
 ### AI assistance and Agent session records
 
 AI assistance is allowed and encouraged when used responsibly. Its use alone does not reduce functional credit: you must verify the code and explain interfaces, state changes, and failure paths. The existing 20-point transparency block reviews disclosure, archive coverage, authenticity, and verification. If no AI was used, explicitly state this and retain development records; do not fabricate session archives.

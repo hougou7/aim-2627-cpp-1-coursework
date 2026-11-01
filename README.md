@@ -47,7 +47,19 @@ python3 tools/check.py . --output scores
 | local_tests/ | 你自己新增的实验测试 | 可以新增 |
 | README.md 下方两节 | 个人说明 | 填写 |
 
-GitHub Actions 构建程序并运行公开 CTest；初始 TODO 模板可以构建，但测试会失败。逐题完成后对应测试转绿，挑战题也有独立测试。正式收卷由教师 grader 进行。
+GitHub Actions 自动运行公开评分；Q1–Q8 全部通过时评分步骤转绿，挑战题未完成不阻断 CI。正式收卷由教师 grader 复核。
+
+## GitHub CI 与回执问卷
+
+在 main 分支开发并推送，或通过 PR 合并到 main。每次 main 推送、目标为 main 的 PR，以及手动运行都会触发 CI。CI 参照 Python 作业检查累计修改范围、运行公开用例自动评分，并将提交粒度软检查写入 Actions Summary。
+
+学生仓库只允许改动 src/main 中原有题目的实现、README.md、local_tests/ 和 .agent-sessions/bundles/；工作流、工具、公开测试、固定类型和题面不能修改。模板维护仓库跳过学生修改范围检查。提交数以初始 commit 为基准统计，参考线为 15，只提供过程线索，不阻断 CI 或自动决定人工分。
+
+Summary 显示每题通过组数、公开自测功能分 /60 与挑战分 /20，并附 JSON、Markdown 和 CSV 评分报告 Artifact。Q1–Q8 必须全部通过；B1/B2 为选做，未完成不阻止 CI 通过。评分失败时仍生成 Summary 和可用的诊断报告。
+
+公开自测分不等于正式成绩，教师私有用例不进入学生仓库或 CI；人工 40 分和最终总分保持待评。确认最终 main commit 的 CI 全部通过后，每人填写一次 [AIM 2627 CPP Coursework 1 回执](https://docs.qq.com/form/page/DWnRNY1RTZ2pvdmNK)。按问卷要求填写个人信息、仓库链接和最终 main commit，并保留对应 Actions 运行链接；以问卷实际字段为准。PR 的检查不替代最终 main 提交。
+
+本地复现 CI 评分：`python3 tools/check.py . --output scores --require-core`。
 
 ## Agent 会话归档：0.1.5
 
